@@ -19,5 +19,17 @@ pipeline {
         sh '${BUNPATH}/bunx eslint .'
       }
     }
+    stage("Test") {
+        steps {
+            sh '${BUNPATH}/bun test'
+        }
+    }
+    stage("Dockerize") {
+        steps {
+            script {
+              docker.build "buninfo:${env.BUILD_NUMBER}"
+            }
+        }
+    }
   }
 }
