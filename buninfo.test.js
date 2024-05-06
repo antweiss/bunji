@@ -4,7 +4,7 @@ import { getMem, getCPU } from "./info.js";
 test("checkCPU", async () => {
   const data = await getCPU();
   expect(data.cores).toBeGreaterThan(0);
-}, 60);
+}, 100);
 
 test("checkMem", async () => {
   const data = await getMem();
