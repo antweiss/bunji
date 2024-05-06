@@ -1,8 +1,7 @@
 import figlet from "figlet"
-import "systeminformation"
 import { getMem, getCPU } from "./info.js";
+import Bun from "bun"
 
-const si = require('systeminformation');
 
 const server = Bun.serve({
   host: "0.0.0.0",
