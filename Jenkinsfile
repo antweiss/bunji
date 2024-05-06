@@ -1,5 +1,8 @@
 pipeline {
   agent any
+  environment {
+      BUNPATH="${HOME}/.bun/bin"
+  }
   stages {
     stage("Install Bun") {
       steps {
@@ -8,7 +11,12 @@ pipeline {
     }
     stage("Install dependencies") {
       steps {
-        sh 'bun install'
+        sh '${BUNPATH}/bun install'
+      }
+    }
+    stage("Lint") {
+      steps {
+        sh '${BUNPATH}/bunx eslint .'
       }
     }
   }
