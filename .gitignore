@@ -173,3 +173,10 @@ dist
 
 # Finder (MacOS) folder config
 .DS_Store
+
+# Appointment System
+config.json
+credentials.json
+token.json
+appointments.db
+appointments.db-journal
