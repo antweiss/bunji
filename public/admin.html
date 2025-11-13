@@ -131,6 +131,7 @@
       border-radius: 8px;
       margin-bottom: 20px;
       display: none;
+      line-height: 1.6;
     }
 
     .alert.error {
@@ -145,6 +146,19 @@
       color: #155724;
       border: 1px solid #c3e6cb;
       display: block;
+    }
+
+    .alert a {
+      color: #667eea;
+      text-decoration: underline;
+    }
+
+    .alert code {
+      background: rgba(0, 0, 0, 0.1);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 12px;
     }
 
     /* Dashboard Layout */
@@ -692,11 +706,31 @@
         const data = await response.json();
         if (data.authUrl) {
           window.location.href = data.authUrl;
+        } else if (data.error) {
+          // Show detailed error message
+          showLoginAlert(data.error, 'error');
+
+          // If OAuth is not configured, show setup instructions
+          if (data.error.includes('not configured')) {
+            setTimeout(() => {
+              document.getElementById('loginAlert').innerHTML = `
+                <strong>Google OAuth Setup Required</strong><br><br>
+                To use Google Sign-In, you need to:<br>
+                1. Create a project at <a href="https://console.cloud.google.com" target="_blank" style="color: #667eea;">Google Cloud Console</a><br>
+                2. Enable Google Calendar API<br>
+                3. Create OAuth 2.0 credentials (Web application)<br>
+                4. Download credentials.json to the project root<br>
+                5. Set redirect URI to: <code>http://your-domain/api/admin/oauth/callback</code><br><br>
+                <small>See SETUP.md for detailed instructions</small>
+              `;
+            }, 100);
+          }
         } else {
           showLoginAlert('Failed to initiate Google login', 'error');
         }
       } catch (error) {
-        showLoginAlert('Network error', 'error');
+        console.error('Login error:', error);
+        showLoginAlert('Network error. Please check if the server is running.', 'error');
       }
     }
 

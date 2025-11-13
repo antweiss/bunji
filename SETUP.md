@@ -29,23 +29,32 @@ npm install
 
 1. Go to "APIs & Services" > "Credentials"
 2. Click "Create Credentials" > "OAuth client ID"
-3. Select "Desktop app" as the application type
-4. Download the credentials JSON file
-5. Rename it to `credentials.json` and place it in the project root
+3. **Important:** Select **"Web application"** as the application type (not Desktop app)
+4. Configure the OAuth client:
+   - **Name:** Choose a name (e.g., "Appointment Scheduler")
+   - **Authorized redirect URIs:** Add your callback URL:
+     - For local development: `http://localhost:3000/api/admin/oauth/callback`
+     - For production: `https://your-domain.com/api/admin/oauth/callback`
+     - For Railway: `https://your-app.railway.app/api/admin/oauth/callback`
+5. Click "Create"
+6. Download the credentials JSON file
+7. Rename it to `credentials.json` and place it in the project root
 
-### 2.3 Authorize the Application
+### 2.3 Configure Authorized Administrators
 
-Run the authorization script:
+The admin interface uses Google OAuth for authentication. You can restrict access to specific Google accounts:
 
+**Option 1: Environment Variable (Recommended for Production)**
 ```bash
-node authorize.js
+export ADMIN_EMAILS="admin@example.com,owner@business.com"
 ```
 
-This will:
-- Open a browser window for you to authorize the application
-- Save the token to `token.json` for future use
+**Option 2: Configure via Admin Interface**
+After first login, go to Settings > Authorized Administrators to add/remove admin emails.
 
-**Note:** Both `credentials.json` and `token.json` are in `.gitignore` and should never be committed to version control.
+**Security Note:** If no authorized admins are configured, ANY Google user can access the admin panel. Always configure this in production!
+
+**Note:** `credentials.json` is in `.gitignore` and should never be committed to version control.
 
 ## Step 3: Set up Telegram Bot
 
@@ -102,25 +111,57 @@ bun run index.js
 
 The server will start on `http://localhost:3000`
 
-## Step 6: Test the System
+## Step 6: Access the Admin Interface
 
-1. Open `http://localhost:3000/book` in your browser
-2. Fill out the appointment booking form
-3. Submit the form
-4. You should receive a notification in Telegram with approval buttons
-5. Click "Approve" or "Reject" to process the appointment
-6. If approved, the event will be added to your Google Calendar
-7. The client will receive a notification (currently logged to console)
+1. Open `http://localhost:3000/admin.html` in your browser
+2. Click "Sign in with Google"
+3. Authorize the application to access your Google Calendar
+4. You'll be redirected to the admin dashboard
+
+The admin interface allows you to:
+- View all appointments and statistics
+- Manage services (add, edit, delete)
+- Configure business hours
+- Customize branding (business name, colors)
+- Manage authorized administrators
+- View Google Calendar integration status
+
+## Step 7: Test the Booking System
+
+1. Open `http://localhost:3000/booking.html` in your browser
+2. Select a service and choose an available time slot
+3. Fill out your contact information
+4. Submit the appointment request
+5. You should receive a notification in Telegram with approval buttons
+6. Click "Approve" or "Reject" to process the appointment
+7. If approved, the event will be added to your Google Calendar
+8. The client will receive a notification (currently logged to console)
 
 ## API Endpoints
 
+### Public Endpoints
 - `GET /` - Booking form
-- `GET /book` - Booking form (alternative route)
+- `GET /booking.html` - Booking form
 - `POST /api/appointments` - Create a new appointment request
 - `GET /api/appointments` - Get all appointments
 - `GET /api/appointments/:id` - Get a specific appointment
+- `GET /api/available-slots` - Get available time slots for a date
 - `GET /memory` - System memory information
 - `GET /cpu` - System CPU information
+
+### Admin Endpoints (Authentication Required)
+- `GET /admin.html` - Admin dashboard interface
+- `GET /api/admin/oauth/login` - Initiate Google OAuth login
+- `GET /api/admin/oauth/callback` - OAuth callback handler
+- `POST /api/admin/logout` - Logout and clear session
+- `GET /api/admin/settings` - Get all admin settings
+- `GET /api/admin/services` - Get all services
+- `POST /api/admin/services` - Create a new service
+- `PUT /api/admin/services/:id` - Update a service
+- `DELETE /api/admin/services/:id` - Delete a service
+- `PUT /api/admin/business-hours` - Update business hours
+- `PUT /api/admin/branding` - Update branding settings
+- `PUT /api/admin/authorized-admins` - Update authorized admin emails
 
 ## Telegram Bot Commands
 
@@ -198,11 +239,31 @@ The system currently uses UTC for calendar events. To use a different timezone:
 
 ## Troubleshooting
 
+### Google OAuth / Admin Login Issues
+
+**"Failed to initiate Google login" error:**
+- Ensure `credentials.json` exists in the project root directory
+- Check that you created a "Web application" OAuth client (not Desktop app)
+- Verify the redirect URI in Google Cloud Console matches your deployment URL
+- Check server logs for OAuth initialization errors
+
+**"Your email is not authorized" error:**
+- Your Google account email is not in the authorized admins list
+- Set `ADMIN_EMAILS` environment variable with your email, or
+- Ask the system administrator to add your email via the admin interface
+
+**OAuth redirect URI mismatch:**
+- The redirect URI must be exactly: `http://your-domain/api/admin/oauth/callback`
+- For Railway: `https://your-app.railway.app/api/admin/oauth/callback`
+- For localhost: `http://localhost:3000/api/admin/oauth/callback`
+- Update both Google Cloud Console AND redeploy if using environment-based config
+
 ### Google Calendar API Errors
 
 - Ensure the Google Calendar API is enabled in your Google Cloud project
 - Check that `credentials.json` is properly configured
-- Try regenerating `token.json` by running the authorization script again
+- Verify OAuth scopes include `https://www.googleapis.com/auth/calendar`
+- Check that the admin has completed the OAuth flow (logged in at least once)
 
 ### Telegram Bot Not Responding
 
@@ -219,12 +280,15 @@ The system currently uses UTC for calendar events. To use a different timezone:
 
 ## Security Notes
 
-- Never commit `config.json`, `credentials.json`, or `token.json` to version control
+- Never commit `config.json`, `credentials.json`, `admin-settings.json`, or `appointments.db` to version control
 - Keep your Telegram bot token secret
-- Consider adding authentication for the booking form in production
-- Use HTTPS in production
+- **IMPORTANT:** Always configure `ADMIN_EMAILS` environment variable in production to restrict admin access
+- Without authorized admin emails configured, ANY Google user can access your admin panel
+- Use HTTPS in production (required for Google OAuth in production)
+- The OAuth redirect URI must exactly match what's configured in Google Cloud Console
 - Consider rate limiting for the API endpoints
 - Sanitize all user inputs
+- Admin sessions expire after 24 hours
 
 ## Production Deployment
 
@@ -285,17 +349,17 @@ Railway is a popular platform for deploying Node.js applications. Here's how to 
 
 For containerized deployments, you can use these environment variables:
 
-- `DATABASE_PATH` - Custom path for SQLite database (default: auto-detected)
 - `PORT` - Server port (default: 3000)
+- `DATABASE_PATH` - Custom path for SQLite database (default: auto-detected)
 - `NODE_ENV` - Environment (development/production)
+- `ADMIN_EMAILS` - Comma-separated list of authorized admin emails (e.g., "admin@example.com,owner@business.com")
+- `ADMIN_PASSWORD_HASH` - SHA-256 hash of admin password (for legacy password auth)
 
 Configuration via environment variables (instead of config.json):
 - `TELEGRAM_BOT_TOKEN` - Your Telegram bot token
 - `TELEGRAM_ADMIN_CHAT_ID` - Your Telegram chat ID
-- `GOOGLE_CREDENTIALS` - Base64-encoded credentials.json
-- `GOOGLE_TOKEN` - Base64-encoded token.json
 
-Note: The application currently reads from config.json. You'll need to modify the code to support env vars if not using config.json.
+**Note:** The Google OAuth credentials (`credentials.json`) must be present in the project root directory. The admin OAuth flow automatically saves tokens when admins log in, so `token.json` is no longer needed.
 
 ## License
 
