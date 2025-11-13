@@ -1,6 +1,6 @@
 import figlet from "figlet"
 import { getMem, getCPU } from "./info.js";
-import Bun from "bun"
+import http from 'http';
 import { v4 as uuidv4 } from 'uuid';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
@@ -47,43 +47,70 @@ try {
   console.error('Error loading configuration:', error.message);
 }
 
-const server = Bun.serve({
-  host: "0.0.0.0",
-  port: 3000,
-  async fetch(req) {
-    console.log(`Got a ${req.method} request on ${req.url}`);
-    const url = new URL(req.url);
+const server = http.createServer(async (req, res) => {
+  console.log(`Got a ${req.method} request on ${req.url}`);
+  const url = new URL(req.url, `http://${req.headers.host}`);
 
+  // Helper function to send JSON response
+  const sendJSON = (data, statusCode = 200) => {
+    res.writeHead(statusCode, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(data));
+  };
+
+  // Helper function to send text response
+  const sendText = (text, statusCode = 200) => {
+    res.writeHead(statusCode, { 'Content-Type': 'text/plain' });
+    res.end(text);
+  };
+
+  // Helper function to send HTML response
+  const sendHTML = (html, statusCode = 200) => {
+    res.writeHead(statusCode, { 'Content-Type': 'text/html' });
+    res.end(html);
+  };
+
+  // Helper function to parse JSON body
+  const parseBody = () => {
+    return new Promise((resolve, reject) => {
+      let body = '';
+      req.on('data', chunk => { body += chunk.toString(); });
+      req.on('end', () => {
+        try {
+          resolve(JSON.parse(body));
+        } catch (error) {
+          reject(error);
+        }
+      });
+      req.on('error', reject);
+    });
+  };
+
+  try {
     // Existing endpoints
     if (url.pathname === "/memory") {
-        const data = await getMem();
-        return new Response(JSON.stringify(data));
+      const data = await getMem();
+      sendJSON(data);
     }
     else if (url.pathname === "/cpu") {
-        const data = await getCPU();
-        return new Response(JSON.stringify(data));
+      const data = await getCPU();
+      sendJSON(data);
     }
 
     // Appointment scheduling endpoints
     else if (url.pathname === "/api/appointments" && req.method === "POST") {
       try {
-        const body = await req.json();
+        const body = await parseBody();
 
         // Validate required fields
         const requiredFields = ['client_name', 'client_email', 'service_type', 'requested_date', 'requested_time'];
         const missingFields = requiredFields.filter(field => !body[field]);
 
         if (missingFields.length > 0) {
-          return new Response(
-            JSON.stringify({
-              error: 'Missing required fields',
-              fields: missingFields
-            }),
-            {
-              status: 400,
-              headers: { 'Content-Type': 'application/json' }
-            }
-          );
+          sendJSON({
+            error: 'Missing required fields',
+            fields: missingFields
+          }, 400);
+          return;
         }
 
         // Create appointment
@@ -102,47 +129,24 @@ const server = Bun.serve({
           console.error('Failed to send Telegram notification:', telegramError.message);
         }
 
-        return new Response(
-          JSON.stringify({
-            success: true,
-            appointmentId,
-            message: 'Appointment request submitted successfully. You will be notified once it is reviewed.'
-          }),
-          {
-            status: 201,
-            headers: { 'Content-Type': 'application/json' }
-          }
-        );
+        sendJSON({
+          success: true,
+          appointmentId,
+          message: 'Appointment request submitted successfully. You will be notified once it is reviewed.'
+        }, 201);
       } catch (error) {
         console.error('Error creating appointment:', error);
-        return new Response(
-          JSON.stringify({ error: 'Internal server error' }),
-          {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' }
-          }
-        );
+        sendJSON({ error: 'Internal server error' }, 500);
       }
     }
 
     else if (url.pathname === "/api/appointments" && req.method === "GET") {
       try {
         const appointments = getAllAppointments();
-        return new Response(
-          JSON.stringify(appointments),
-          {
-            headers: { 'Content-Type': 'application/json' }
-          }
-        );
+        sendJSON(appointments);
       } catch (error) {
         console.error('Error fetching appointments:', error);
-        return new Response(
-          JSON.stringify({ error: 'Internal server error' }),
-          {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' }
-          }
-        );
+        sendJSON({ error: 'Internal server error' }, 500);
       }
     }
 
@@ -152,30 +156,14 @@ const server = Bun.serve({
         const appointment = getAppointment(appointmentId);
 
         if (!appointment) {
-          return new Response(
-            JSON.stringify({ error: 'Appointment not found' }),
-            {
-              status: 404,
-              headers: { 'Content-Type': 'application/json' }
-            }
-          );
+          sendJSON({ error: 'Appointment not found' }, 404);
+          return;
         }
 
-        return new Response(
-          JSON.stringify(appointment),
-          {
-            headers: { 'Content-Type': 'application/json' }
-          }
-        );
+        sendJSON(appointment);
       } catch (error) {
         console.error('Error fetching appointment:', error);
-        return new Response(
-          JSON.stringify({ error: 'Internal server error' }),
-          {
-            status: 500,
-            headers: { 'Content-Type': 'application/json' }
-          }
-        );
+        sendJSON({ error: 'Internal server error' }, 500);
       }
     }
 
@@ -185,24 +173,30 @@ const server = Bun.serve({
         const htmlPath = join(__dirname, 'public', 'booking.html');
         if (existsSync(htmlPath)) {
           const html = readFileSync(htmlPath, 'utf8');
-          return new Response(html, {
-            headers: { 'Content-Type': 'text/html' }
-          });
+          sendHTML(html);
+          return;
         }
       } catch (error) {
         console.error('Error serving booking form:', error);
       }
       // Fallback to figlet
       const body = figlet.textSync("Bringin' you the Bun Info!");
-      return new Response(body);
+      sendText(body);
     }
 
     // Default response
-    const body = figlet.textSync("Bringin' you the Bun Info!");
-    return new Response(body);
-  },
+    else {
+      const body = figlet.textSync("Bringin' you the Bun Info!");
+      sendText(body);
+    }
+  } catch (error) {
+    console.error('Server error:', error);
+    sendJSON({ error: 'Internal server error' }, 500);
+  }
 });
 
-
-console.log(`Info server listening on http://localhost:${server.port} ...`);
-console.log(`Appointment booking available at http://localhost:${server.port}/book`);
+const PORT = 3000;
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`Info server listening on http://localhost:${PORT} ...`);
+  console.log(`Appointment booking available at http://localhost:${PORT}/book`);
+});

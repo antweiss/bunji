@@ -1,6 +1,4 @@
-import "systeminformation"
-
-const si = require("systeminformation")
+import si from "systeminformation";
 
 export const getMem = () => {
   return si.mem()
