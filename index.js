@@ -15,7 +15,7 @@ import {
   getAppointmentsByStatus
 } from './database.js';
 import { initTelegramBot, sendAppointmentRequest } from './telegram.js';
-import { initCalendar } from './calendar.js';
+import { initCalendar, getAvailableSlots } from './calendar.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -97,6 +97,45 @@ const server = http.createServer(async (req, res) => {
     }
 
     // Appointment scheduling endpoints
+
+    // Get available time slots for a specific date
+    else if (url.pathname === "/api/available-slots" && req.method === "GET") {
+      try {
+        const date = url.searchParams.get('date');
+        const duration = parseInt(url.searchParams.get('duration')) || 60;
+
+        if (!date) {
+          sendJSON({ error: 'Date parameter is required (YYYY-MM-DD format)' }, 400);
+          return;
+        }
+
+        // Validate date format
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+          sendJSON({ error: 'Invalid date format. Use YYYY-MM-DD' }, 400);
+          return;
+        }
+
+        // Get business hours from config
+        const businessHours = config.business?.businessHours || null;
+
+        // Fetch available slots from Google Calendar
+        const slots = await getAvailableSlots(date, duration, businessHours);
+
+        sendJSON({
+          date,
+          duration,
+          slots,
+          totalSlots: slots.length
+        });
+      } catch (error) {
+        console.error('Error fetching available slots:', error);
+        sendJSON({
+          error: 'Failed to fetch available slots',
+          message: error.message
+        }, 500);
+      }
+    }
+
     else if (url.pathname === "/api/appointments" && req.method === "POST") {
       try {
         const body = await parseBody();

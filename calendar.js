@@ -164,3 +164,136 @@ export const listEvents = async (startDate, endDate) => {
     throw error;
   }
 };
+
+/**
+ * Get available time slots for a specific date
+ * @param {string} date - Date in YYYY-MM-DD format
+ * @param {number} duration - Appointment duration in minutes
+ * @param {Object} businessHours - Business hours configuration
+ * @returns {Promise<Array>} - Array of available time slots
+ */
+export const getAvailableSlots = async (date, duration = 60, businessHours = null) => {
+  if (!calendar) {
+    await initCalendar();
+  }
+
+  try {
+    // Default business hours: Monday-Friday 9am-5pm
+    const defaultBusinessHours = {
+      monday: { start: '09:00', end: '17:00' },
+      tuesday: { start: '09:00', end: '17:00' },
+      wednesday: { start: '09:00', end: '17:00' },
+      thursday: { start: '09:00', end: '17:00' },
+      friday: { start: '09:00', end: '17:00' },
+      saturday: null,
+      sunday: null
+    };
+
+    const hours = businessHours || defaultBusinessHours;
+
+    // Parse the date
+    const targetDate = new Date(date + 'T00:00:00');
+    const dayOfWeek = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][targetDate.getDay()];
+
+    // Check if business is open on this day
+    if (!hours[dayOfWeek]) {
+      return [];
+    }
+
+    const { start: startTime, end: endTime } = hours[dayOfWeek];
+
+    // Create start and end datetime for the day
+    const dayStart = new Date(`${date}T${startTime}:00`);
+    const dayEnd = new Date(`${date}T${endTime}:00`);
+
+    // Get all events for this day
+    const events = await listEvents(dayStart, new Date(dayEnd.getTime() + 1000));
+
+    // Generate all possible time slots
+    const slots = [];
+    let currentSlot = new Date(dayStart);
+
+    while (currentSlot < dayEnd) {
+      const slotEnd = new Date(currentSlot.getTime() + duration * 60000);
+
+      // Check if slot would end after business hours
+      if (slotEnd > dayEnd) {
+        break;
+      }
+
+      // Check if this slot conflicts with any existing events
+      let isAvailable = true;
+      for (const event of events) {
+        const eventStart = new Date(event.start.dateTime || event.start.date);
+        const eventEnd = new Date(event.end.dateTime || event.end.date);
+
+        // Check for overlap
+        if (
+          (currentSlot >= eventStart && currentSlot < eventEnd) ||
+          (slotEnd > eventStart && slotEnd <= eventEnd) ||
+          (currentSlot <= eventStart && slotEnd >= eventEnd)
+        ) {
+          isAvailable = false;
+          break;
+        }
+      }
+
+      if (isAvailable) {
+        slots.push({
+          start: currentSlot.toISOString(),
+          end: slotEnd.toISOString(),
+          time: currentSlot.toTimeString().slice(0, 5), // HH:MM format
+          display: formatTimeSlot(currentSlot)
+        });
+      }
+
+      // Move to next slot (15-minute increments)
+      currentSlot = new Date(currentSlot.getTime() + 15 * 60000);
+    }
+
+    return slots;
+  } catch (error) {
+    console.error('Error getting available slots:', error.message);
+    throw error;
+  }
+};
+
+/**
+ * Check if a specific time slot is available
+ * @param {string} date - Date in YYYY-MM-DD format
+ * @param {string} time - Time in HH:MM format
+ * @param {number} duration - Duration in minutes
+ * @returns {Promise<boolean>}
+ */
+export const isSlotAvailable = async (date, time, duration = 60) => {
+  if (!calendar) {
+    await initCalendar();
+  }
+
+  try {
+    const slotStart = new Date(`${date}T${time}:00`);
+    const slotEnd = new Date(slotStart.getTime() + duration * 60000);
+
+    const events = await listEvents(slotStart, slotEnd);
+
+    // If there are any events in this time range, slot is not available
+    return events.length === 0;
+  } catch (error) {
+    console.error('Error checking slot availability:', error.message);
+    throw error;
+  }
+};
+
+/**
+ * Format a time slot for display
+ * @param {Date} date
+ * @returns {string}
+ */
+const formatTimeSlot = (date) => {
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  const displayHours = hours % 12 || 12;
+  const displayMinutes = minutes.toString().padStart(2, '0');
+  return `${displayHours}:${displayMinutes} ${ampm}`;
+};
