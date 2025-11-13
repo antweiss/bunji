@@ -239,6 +239,64 @@ For production deployment:
 7. Consider using a more robust database (PostgreSQL, MySQL)
 8. Implement rate limiting and CAPTCHA on the booking form
 
+### Deploying to Railway
+
+Railway is a popular platform for deploying Node.js applications. Here's how to deploy:
+
+1. **Connect your GitHub repository** to Railway
+2. **Set environment variables** in Railway dashboard:
+   ```
+   TELEGRAM_BOT_TOKEN=your_bot_token
+   TELEGRAM_ADMIN_CHAT_ID=your_chat_id
+   DATABASE_PATH=/tmp/appointments.db (optional, auto-detected)
+   ```
+
+3. **Important: Database Persistence**
+   - By default, the app uses SQLite in `/tmp` on Railway
+   - **Data in /tmp is ephemeral** and will be lost on container restarts
+   - For production, consider:
+     - Using Railway's PostgreSQL add-on (recommended)
+     - Mounting a volume for persistent SQLite storage
+     - Switching to a cloud database service
+
+4. **Google Calendar Setup**
+   - Google Calendar credentials can't be easily deployed with Railway
+   - Consider one of these approaches:
+     - Use environment variables for credentials (JSON as base64)
+     - Use a service account instead of OAuth (easier for server-side)
+     - Store credentials in Railway's file storage
+
+5. **Example Railway configuration** (railway.json):
+   ```json
+   {
+     "build": {
+       "builder": "NIXPACKS"
+     },
+     "deploy": {
+       "startCommand": "node index.js",
+       "restartPolicyType": "ON_FAILURE"
+     }
+   }
+   ```
+
+6. **Health checks**: Railway automatically monitors your service on port 3000
+
+### Environment Variables Reference
+
+For containerized deployments, you can use these environment variables:
+
+- `DATABASE_PATH` - Custom path for SQLite database (default: auto-detected)
+- `PORT` - Server port (default: 3000)
+- `NODE_ENV` - Environment (development/production)
+
+Configuration via environment variables (instead of config.json):
+- `TELEGRAM_BOT_TOKEN` - Your Telegram bot token
+- `TELEGRAM_ADMIN_CHAT_ID` - Your Telegram chat ID
+- `GOOGLE_CREDENTIALS` - Base64-encoded credentials.json
+- `GOOGLE_TOKEN` - Base64-encoded token.json
+
+Note: The application currently reads from config.json. You'll need to modify the code to support env vars if not using config.json.
+
 ## License
 
 This is a custom appointment scheduling system for individual business owners.
