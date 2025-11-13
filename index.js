@@ -2,10 +2,11 @@ import figlet from "figlet"
 import { getMem, getCPU } from "./info.js";
 import http from 'http';
 import { v4 as uuidv4 } from 'uuid';
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import crypto from 'crypto';
 
 // Import appointment system modules
 import {
@@ -45,6 +46,93 @@ try {
   }
 } catch (error) {
   console.error('Error loading configuration:', error.message);
+}
+
+// Admin authentication and session management
+const sessions = new Map(); // In-memory session storage
+const ADMIN_PASSWORD_HASH = process.env.ADMIN_PASSWORD_HASH ||
+  crypto.createHash('sha256').update('admin123').digest('hex'); // Default password: admin123
+
+function hashPassword(password) {
+  return crypto.createHash('sha256').update(password).digest('hex');
+}
+
+function createSession(username) {
+  const sessionId = uuidv4();
+  sessions.set(sessionId, {
+    username,
+    createdAt: Date.now(),
+    expiresAt: Date.now() + 24 * 60 * 60 * 1000 // 24 hours
+  });
+  return sessionId;
+}
+
+function validateSession(sessionId) {
+  const session = sessions.get(sessionId);
+  if (!session) return false;
+  if (Date.now() > session.expiresAt) {
+    sessions.delete(sessionId);
+    return false;
+  }
+  return true;
+}
+
+function getSessionFromCookie(cookieHeader) {
+  if (!cookieHeader) return null;
+  const cookies = cookieHeader.split(';').reduce((acc, cookie) => {
+    const [key, value] = cookie.trim().split('=');
+    acc[key] = value;
+    return acc;
+  }, {});
+  return cookies.session || null;
+}
+
+// Load or create admin settings
+let adminSettings = {
+  branding: {
+    businessName: config.business?.name || 'My Business',
+    primaryColor: '#667eea',
+    logo: null
+  },
+  services: [
+    { id: '1', name: 'Therapy Session', duration: 60, emoji: '💬', active: true },
+    { id: '2', name: 'Consultation', duration: 30, emoji: '🗣️', active: true },
+    { id: '3', name: 'Haircut', duration: 45, emoji: '✂️', active: true },
+    { id: '4', name: 'Hair Styling', duration: 60, emoji: '💇', active: true },
+    { id: '5', name: 'Facial Treatment', duration: 60, emoji: '✨', active: true },
+    { id: '6', name: 'Massage', duration: 90, emoji: '💆', active: true },
+    { id: '7', name: 'Manicure', duration: 45, emoji: '💅', active: true },
+    { id: '8', name: 'Pedicure', duration: 60, emoji: '🦶', active: true },
+    { id: '9', name: 'Makeup', duration: 45, emoji: '💄', active: true }
+  ],
+  businessHours: config.business?.businessHours || {
+    monday: { start: '09:00', end: '17:00' },
+    tuesday: { start: '09:00', end: '17:00' },
+    wednesday: { start: '09:00', end: '17:00' },
+    thursday: { start: '09:00', end: '17:00' },
+    friday: { start: '09:00', end: '17:00' },
+    saturday: null,
+    sunday: null
+  }
+};
+
+// Try to load saved admin settings
+const adminSettingsPath = join(__dirname, 'admin-settings.json');
+if (existsSync(adminSettingsPath)) {
+  try {
+    adminSettings = JSON.parse(readFileSync(adminSettingsPath, 'utf8'));
+    console.log('Admin settings loaded successfully');
+  } catch (error) {
+    console.error('Error loading admin settings:', error.message);
+  }
+}
+
+function saveAdminSettings() {
+  try {
+    writeFileSync(adminSettingsPath, JSON.stringify(adminSettings, null, 2));
+  } catch (error) {
+    console.error('Error saving admin settings:', error.message);
+  }
 }
 
 const server = http.createServer(async (req, res) => {
@@ -204,6 +292,199 @@ const server = http.createServer(async (req, res) => {
         console.error('Error fetching appointment:', error);
         sendJSON({ error: 'Internal server error' }, 500);
       }
+    }
+
+    // Admin API endpoints
+
+    // Admin login
+    else if (url.pathname === "/api/admin/login" && req.method === "POST") {
+      try {
+        const body = await parseBody();
+        const { password } = body;
+
+        if (!password) {
+          sendJSON({ error: 'Password required' }, 400);
+          return;
+        }
+
+        const hash = hashPassword(password);
+        if (hash === ADMIN_PASSWORD_HASH) {
+          const sessionId = createSession('admin');
+          res.writeHead(200, {
+            'Content-Type': 'application/json',
+            'Set-Cookie': `session=${sessionId}; HttpOnly; Max-Age=86400; Path=/; SameSite=Strict`
+          });
+          res.end(JSON.stringify({ success: true }));
+        } else {
+          sendJSON({ error: 'Invalid password' }, 401);
+        }
+      } catch (error) {
+        console.error('Login error:', error);
+        sendJSON({ error: 'Internal server error' }, 500);
+      }
+    }
+
+    // Admin logout
+    else if (url.pathname === "/api/admin/logout" && req.method === "POST") {
+      const sessionId = getSessionFromCookie(req.headers.cookie);
+      if (sessionId) {
+        sessions.delete(sessionId);
+      }
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        'Set-Cookie': 'session=; HttpOnly; Max-Age=0; Path=/; SameSite=Strict'
+      });
+      res.end(JSON.stringify({ success: true }));
+    }
+
+    // Get admin settings
+    else if (url.pathname === "/api/admin/settings" && req.method === "GET") {
+      const sessionId = getSessionFromCookie(req.headers.cookie);
+      if (!validateSession(sessionId)) {
+        sendJSON({ error: 'Unauthorized' }, 401);
+        return;
+      }
+      sendJSON(adminSettings);
+    }
+
+    // Update branding
+    else if (url.pathname === "/api/admin/branding" && req.method === "PUT") {
+      const sessionId = getSessionFromCookie(req.headers.cookie);
+      if (!validateSession(sessionId)) {
+        sendJSON({ error: 'Unauthorized' }, 401);
+        return;
+      }
+
+      try {
+        const body = await parseBody();
+        adminSettings.branding = { ...adminSettings.branding, ...body };
+        saveAdminSettings();
+        sendJSON({ success: true, branding: adminSettings.branding });
+      } catch (error) {
+        console.error('Error updating branding:', error);
+        sendJSON({ error: 'Internal server error' }, 500);
+      }
+    }
+
+    // Get services
+    else if (url.pathname === "/api/admin/services" && req.method === "GET") {
+      const sessionId = getSessionFromCookie(req.headers.cookie);
+      if (!validateSession(sessionId)) {
+        sendJSON({ error: 'Unauthorized' }, 401);
+        return;
+      }
+      sendJSON(adminSettings.services);
+    }
+
+    // Create service
+    else if (url.pathname === "/api/admin/services" && req.method === "POST") {
+      const sessionId = getSessionFromCookie(req.headers.cookie);
+      if (!validateSession(sessionId)) {
+        sendJSON({ error: 'Unauthorized' }, 401);
+        return;
+      }
+
+      try {
+        const body = await parseBody();
+        const newService = {
+          id: uuidv4(),
+          ...body,
+          active: true
+        };
+        adminSettings.services.push(newService);
+        saveAdminSettings();
+        sendJSON({ success: true, service: newService }, 201);
+      } catch (error) {
+        console.error('Error creating service:', error);
+        sendJSON({ error: 'Internal server error' }, 500);
+      }
+    }
+
+    // Update service
+    else if (url.pathname.startsWith("/api/admin/services/") && req.method === "PUT") {
+      const sessionId = getSessionFromCookie(req.headers.cookie);
+      if (!validateSession(sessionId)) {
+        sendJSON({ error: 'Unauthorized' }, 401);
+        return;
+      }
+
+      try {
+        const serviceId = url.pathname.split('/').pop();
+        const body = await parseBody();
+
+        const index = adminSettings.services.findIndex(s => s.id === serviceId);
+        if (index === -1) {
+          sendJSON({ error: 'Service not found' }, 404);
+          return;
+        }
+
+        adminSettings.services[index] = { ...adminSettings.services[index], ...body };
+        saveAdminSettings();
+        sendJSON({ success: true, service: adminSettings.services[index] });
+      } catch (error) {
+        console.error('Error updating service:', error);
+        sendJSON({ error: 'Internal server error' }, 500);
+      }
+    }
+
+    // Delete service
+    else if (url.pathname.startsWith("/api/admin/services/") && req.method === "DELETE") {
+      const sessionId = getSessionFromCookie(req.headers.cookie);
+      if (!validateSession(sessionId)) {
+        sendJSON({ error: 'Unauthorized' }, 401);
+        return;
+      }
+
+      try {
+        const serviceId = url.pathname.split('/').pop();
+        const index = adminSettings.services.findIndex(s => s.id === serviceId);
+
+        if (index === -1) {
+          sendJSON({ error: 'Service not found' }, 404);
+          return;
+        }
+
+        adminSettings.services.splice(index, 1);
+        saveAdminSettings();
+        sendJSON({ success: true });
+      } catch (error) {
+        console.error('Error deleting service:', error);
+        sendJSON({ error: 'Internal server error' }, 500);
+      }
+    }
+
+    // Update business hours
+    else if (url.pathname === "/api/admin/business-hours" && req.method === "PUT") {
+      const sessionId = getSessionFromCookie(req.headers.cookie);
+      if (!validateSession(sessionId)) {
+        sendJSON({ error: 'Unauthorized' }, 401);
+        return;
+      }
+
+      try {
+        const body = await parseBody();
+        adminSettings.businessHours = body;
+        saveAdminSettings();
+        sendJSON({ success: true, businessHours: adminSettings.businessHours });
+      } catch (error) {
+        console.error('Error updating business hours:', error);
+        sendJSON({ error: 'Internal server error' }, 500);
+      }
+    }
+
+    // Serve admin interface
+    else if (url.pathname === "/admin" || url.pathname === "/admin/") {
+      try {
+        const htmlPath = join(__dirname, 'public', 'admin.html');
+        if (existsSync(htmlPath)) {
+          const html = readFileSync(htmlPath, 'utf8');
+          sendHTML(html);
+          return;
+        }
+      } catch (error) {
+        console.error('Error serving admin page:', error);
+      }
+      sendText('Admin interface not found', 404);
     }
 
     // Serve booking form

@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f5f7fa;
+      color: #333;
+    }
+
+    /* Login Screen */
+    .login-container {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .login-box {
+      background: white;
+      padding: 40px;
+      border-radius: 15px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      width: 100%;
+      max-width: 400px;
+    }
+
+    .login-box h1 {
+      margin-bottom: 10px;
+      color: #333;
+    }
+
+    .login-box p {
+      color: #666;
+      margin-bottom: 30px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+      color: #555;
+    }
+
+    input[type="text"],
+    input[type="password"],
+    input[type="email"],
+    input[type="number"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 12px 15px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: inherit;
+      transition: border-color 0.3s;
+    }
+
+    input:focus,
+    select:focus,
+    textarea:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .btn {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      width: 100%;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-secondary {
+      background: #f0f0f0;
+      color: #666;
+    }
+
+    .btn-secondary:hover {
+      background: #e0e0e0;
+    }
+
+    .btn-danger {
+      background: #e74c3c;
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background: #c0392b;
+    }
+
+    .btn-success {
+      background: #27ae60;
+      color: white;
+    }
+
+    .btn-success:hover {
+      background: #229954;
+    }
+
+    .alert {
+      padding: 12px 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    .alert.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+      display: block;
+    }
+
+    .alert.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+      display: block;
+    }
+
+    /* Dashboard Layout */
+    .dashboard {
+      display: none;
+    }
+
+    .dashboard.active {
+      display: block;
+    }
+
+    .topbar {
+      background: white;
+      padding: 20px 30px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .topbar h1 {
+      font-size: 24px;
+      color: #333;
+    }
+
+    .topbar .user-menu {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .container {
+      display: flex;
+      height: calc(100vh - 80px);
+    }
+
+    .sidebar {
+      width: 250px;
+      background: white;
+      box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+      padding: 20px 0;
+    }
+
+    .nav-item {
+      padding: 15px 30px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #666;
+    }
+
+    .nav-item:hover {
+      background: #f5f7fa;
+      color: #667eea;
+    }
+
+    .nav-item.active {
+      background: #f0f4ff;
+      color: #667eea;
+      border-left: 4px solid #667eea;
+    }
+
+    .content {
+      flex: 1;
+      padding: 30px;
+      overflow-y: auto;
+    }
+
+    .section {
+      display: none;
+    }
+
+    .section.active {
+      display: block;
+    }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 25px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .card h2 {
+      margin-bottom: 20px;
+      color: #333;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .stat-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 36px;
+      font-weight: bold;
+      color: #667eea;
+      margin: 10px 0;
+    }
+
+    .stat-label {
+      color: #666;
+      font-size: 14px;
+    }
+
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .table th {
+      background: #f5f7fa;
+      padding: 12px;
+      text-align: left;
+      font-weight: 600;
+      color: #666;
+      border-bottom: 2px solid #e0e0e0;
+    }
+
+    .table td {
+      padding: 12px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    .table tr:hover {
+      background: #f9f9f9;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .badge-success {
+      background: #d4edda;
+      color: #155724;
+    }
+
+    .badge-warning {
+      background: #fff3cd;
+      color: #856404;
+    }
+
+    .badge-danger {
+      background: #f8d7da;
+      color: #721c24;
+    }
+
+    .hours-grid {
+      display: grid;
+      gap: 15px;
+    }
+
+    .hours-row {
+      display: grid;
+      grid-template-columns: 150px 1fr 1fr auto;
+      gap: 15px;
+      align-items: center;
+    }
+
+    .hours-day {
+      font-weight: 600;
+      color: #333;
+    }
+
+    .color-input {
+      width: 60px;
+      height: 40px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: white;
+      border-radius: 15px;
+      padding: 30px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .modal-header h2 {
+      margin: 0;
+    }
+
+    .close-modal {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: #999;
+    }
+
+    .close-modal:hover {
+      color: #333;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        flex-direction: column;
+      }
+
+      .sidebar {
+        width: 100%;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+
+      .hours-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Login Screen -->
+  <div class="login-container" id="loginScreen">
+    <div class="login-box">
+      <h1>🔐 Admin Login</h1>
+      <p>Enter your password to access the admin dashboard</p>
+      <div id="loginAlert" class="alert"></div>
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" required placeholder="Enter admin password">
+        </div>
+        <button type="submit" class="btn btn-primary">Login</button>
+      </form>
+      <p style="margin-top: 20px; font-size: 12px; color: #999;">
+        Default password: admin123 (Change this in production!)
+      </p>
+    </div>
+  </div>
+
+  <!-- Dashboard -->
+  <div class="dashboard" id="dashboard">
+    <div class="topbar">
+      <h1>📊 Admin Dashboard</h1>
+      <div class="user-menu">
+        <span>👤 Admin</span>
+        <button class="btn btn-secondary" onclick="logout()">Logout</button>
+      </div>
+    </div>
+
+    <div class="container">
+      <div class="sidebar">
+        <div class="nav-item active" data-section="overview">
+          📊 Overview
+        </div>
+        <div class="nav-item" data-section="services">
+          💼 Services
+        </div>
+        <div class="nav-item" data-section="hours">
+          🕐 Business Hours
+        </div>
+        <div class="nav-item" data-section="branding">
+          🎨 Branding
+        </div>
+        <div class="nav-item" data-section="appointments">
+          📅 Appointments
+        </div>
+        <div class="nav-item" data-section="settings">
+          ⚙️ Settings
+        </div>
+      </div>
+
+      <div class="content">
+        <!-- Overview Section -->
+        <div class="section active" id="overview">
+          <h2>Dashboard Overview</h2>
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-label">Total Appointments</div>
+              <div class="stat-value" id="statTotal">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Pending</div>
+              <div class="stat-value" id="statPending">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Approved</div>
+              <div class="stat-value" id="statApproved">0</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Active Services</div>
+              <div class="stat-value" id="statServices">0</div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2>Recent Appointments</h2>
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Client</th>
+                  <th>Service</th>
+                  <th>Date</th>
+                  <th>Time</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="recentAppointments">
+                <tr>
+                  <td colspan="5" style="text-align: center; color: #999;">Loading...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Services Section -->
+        <div class="section" id="services">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+            <h2>Manage Services</h2>
+            <button class="btn btn-primary" onclick="openServiceModal()">+ Add Service</button>
+          </div>
+
+          <div class="card">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Service</th>
+                  <th>Duration</th>
+                  <th>Status</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="servicesList">
+                <tr>
+                  <td colspan="4" style="text-align: center; color: #999;">Loading...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Business Hours Section -->
+        <div class="section" id="hours">
+          <h2>Business Hours</h2>
+          <div class="card">
+            <div class="hours-grid" id="hoursGrid">
+              <!-- Will be populated dynamically -->
+            </div>
+            <div style="margin-top: 20px;">
+              <button class="btn btn-primary" onclick="saveBusinessHours()">Save Changes</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Branding Section -->
+        <div class="section" id="branding">
+          <h2>Branding & Theme</h2>
+          <div class="card">
+            <div class="form-group">
+              <label>Business Name</label>
+              <input type="text" id="businessName" placeholder="My Business">
+            </div>
+            <div class="form-group">
+              <label>Primary Color</label>
+              <input type="color" id="primaryColor" class="color-input" value="#667eea">
+            </div>
+            <button class="btn btn-primary" onclick="saveBranding()">Save Branding</button>
+          </div>
+        </div>
+
+        <!-- Appointments Section -->
+        <div class="section" id="appointments">
+          <h2>All Appointments</h2>
+          <div class="card">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Client</th>
+                  <th>Email</th>
+                  <th>Service</th>
+                  <th>Date & Time</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="allAppointments">
+                <tr>
+                  <td colspan="5" style="text-align: center; color: #999;">Loading...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Settings Section -->
+        <div class="section" id="settings">
+          <h2>Settings</h2>
+          <div class="card">
+            <h3>Telegram Integration</h3>
+            <p style="color: #666; margin-bottom: 15px;">
+              Telegram settings are configured in config.json
+            </p>
+            <div class="alert success">
+              System is running properly
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>Password</h3>
+            <p style="color: #666; margin-bottom: 15px;">
+              To change the admin password, set the <code>ADMIN_PASSWORD_HASH</code> environment variable with the SHA-256 hash of your desired password.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Service Modal -->
+  <div class="modal" id="serviceModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="serviceModalTitle">Add Service</h2>
+        <button class="close-modal" onclick="closeServiceModal()">×</button>
+      </div>
+      <form id="serviceForm">
+        <input type="hidden" id="serviceId">
+        <div class="form-group">
+          <label>Service Name</label>
+          <input type="text" id="serviceName" required>
+        </div>
+        <div class="form-group">
+          <label>Emoji</label>
+          <input type="text" id="serviceEmoji" placeholder="💬" maxlength="2">
+        </div>
+        <div class="form-group">
+          <label>Duration (minutes)</label>
+          <input type="number" id="serviceDuration" required min="15" step="15" value="60">
+        </div>
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="serviceActive" checked> Active
+          </label>
+        </div>
+        <div style="display: flex; gap: 10px;">
+          <button type="submit" class="btn btn-primary" style="flex: 1;">Save</button>
+          <button type="button" class="btn btn-secondary" onclick="closeServiceModal()">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let settings = null;
+    let editingServiceId = null;
+
+    // Login
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const password = document.getElementById('password').value;
+
+      try {
+        const response = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+
+        if (response.ok) {
+          document.getElementById('loginScreen').style.display = 'none';
+          document.getElementById('dashboard').classList.add('active');
+          loadDashboard();
+        } else {
+          const data = await response.json();
+          showLoginAlert(data.error || 'Invalid password', 'error');
+        }
+      } catch (error) {
+        showLoginAlert('Network error', 'error');
+      }
+    });
+
+    function showLoginAlert(message, type) {
+      const alert = document.getElementById('loginAlert');
+      alert.textContent = message;
+      alert.className = `alert ${type}`;
+    }
+
+    function logout() {
+      fetch('/api/admin/logout', { method: 'POST' })
+        .then(() => {
+          location.reload();
+        });
+    }
+
+    // Navigation
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const section = item.dataset.section;
+        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+        item.classList.add('active');
+        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+        document.getElementById(section).classList.add('active');
+      });
+    });
+
+    // Load Dashboard
+    async function loadDashboard() {
+      await Promise.all([
+        loadSettings(),
+        loadAppointments()
+      ]);
+      renderServices();
+      renderBusinessHours();
+      updateStats();
+    }
+
+    async function loadSettings() {
+      const response = await fetch('/api/admin/settings');
+      settings = await response.json();
+      document.getElementById('businessName').value = settings.branding.businessName;
+      document.getElementById('primaryColor').value = settings.branding.primaryColor;
+    }
+
+    async function loadAppointments() {
+      const response = await fetch('/api/appointments');
+      const appointments = await response.json();
+
+      // Recent appointments
+      const recent = appointments.slice(0, 5);
+      const recentHtml = recent.length ? recent.map(apt => `
+        <tr>
+          <td>${apt.client_name}</td>
+          <td>${apt.service_type}</td>
+          <td>${apt.requested_date}</td>
+          <td>${apt.requested_time}</td>
+          <td><span class="badge badge-${getStatusColor(apt.status)}">${apt.status}</span></td>
+        </tr>
+      `).join('') : '<tr><td colspan="5" style="text-align: center; color: #999;">No appointments yet</td></tr>';
+      document.getElementById('recentAppointments').innerHTML = recentHtml;
+
+      // All appointments
+      const allHtml = appointments.length ? appointments.map(apt => `
+        <tr>
+          <td>${apt.client_name}</td>
+          <td>${apt.client_email}</td>
+          <td>${apt.service_type}</td>
+          <td>${apt.requested_date} ${apt.requested_time}</td>
+          <td><span class="badge badge-${getStatusColor(apt.status)}">${apt.status}</span></td>
+        </tr>
+      `).join('') : '<tr><td colspan="5" style="text-align: center; color: #999;">No appointments yet</td></tr>';
+      document.getElementById('allAppointments').innerHTML = allHtml;
+
+      // Stats
+      document.getElementById('statTotal').textContent = appointments.length;
+      document.getElementById('statPending').textContent = appointments.filter(a => a.status === 'pending').length;
+      document.getElementById('statApproved').textContent = appointments.filter(a => a.status === 'approved').length;
+    }
+
+    function getStatusColor(status) {
+      return status === 'approved' ? 'success' : status === 'pending' ? 'warning' : 'danger';
+    }
+
+    function updateStats() {
+      document.getElementById('statServices').textContent = settings.services.filter(s => s.active).length;
+    }
+
+    // Services
+    function renderServices() {
+      const html = settings.services.map(service => `
+        <tr>
+          <td>${service.emoji} ${service.name}</td>
+          <td>${service.duration} min</td>
+          <td><span class="badge badge-${service.active ? 'success' : 'danger'}">${service.active ? 'Active' : 'Inactive'}</span></td>
+          <td>
+            <button class="btn btn-secondary" onclick="editService('${service.id}')">Edit</button>
+            <button class="btn btn-danger" onclick="deleteService('${service.id}')">Delete</button>
+          </td>
+        </tr>
+      `).join('');
+      document.getElementById('servicesList').innerHTML = html;
+    }
+
+    function openServiceModal(serviceId = null) {
+      editingServiceId = serviceId;
+      if (serviceId) {
+        const service = settings.services.find(s => s.id === serviceId);
+        document.getElementById('serviceModalTitle').textContent = 'Edit Service';
+        document.getElementById('serviceId').value = service.id;
+        document.getElementById('serviceName').value = service.name;
+        document.getElementById('serviceEmoji').value = service.emoji;
+        document.getElementById('serviceDuration').value = service.duration;
+        document.getElementById('serviceActive').checked = service.active;
+      } else {
+        document.getElementById('serviceModalTitle').textContent = 'Add Service';
+        document.getElementById('serviceForm').reset();
+      }
+      document.getElementById('serviceModal').classList.add('active');
+    }
+
+    function closeServiceModal() {
+      document.getElementById('serviceModal').classList.remove('active');
+      editingServiceId = null;
+    }
+
+    function editService(id) {
+      openServiceModal(id);
+    }
+
+    async function deleteService(id) {
+      if (!confirm('Are you sure you want to delete this service?')) return;
+
+      const response = await fetch(`/api/admin/services/${id}`, { method: 'DELETE' });
+      if (response.ok) {
+        await loadSettings();
+        renderServices();
+        updateStats();
+      }
+    }
+
+    document.getElementById('serviceForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const data = {
+        name: document.getElementById('serviceName').value,
+        emoji: document.getElementById('serviceEmoji').value,
+        duration: parseInt(document.getElementById('serviceDuration').value),
+        active: document.getElementById('serviceActive').checked
+      };
+
+      const url = editingServiceId
+        ? `/api/admin/services/${editingServiceId}`
+        : '/api/admin/services';
+
+      const method = editingServiceId ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+
+      if (response.ok) {
+        await loadSettings();
+        renderServices();
+        updateStats();
+        closeServiceModal();
+      }
+    });
+
+    // Business Hours
+    function renderBusinessHours() {
+      const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+      const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
+      const html = days.map((day, index) => {
+        const hours = settings.businessHours[day];
+        const isOpen = hours !== null;
+        return `
+          <div class="hours-row">
+            <div class="hours-day">${dayNames[index]}</div>
+            <input type="time" id="start-${day}" value="${isOpen ? hours.start : ''}" ${!isOpen ? 'disabled' : ''}>
+            <input type="time" id="end-${day}" value="${isOpen ? hours.end : ''}" ${!isOpen ? 'disabled' : ''}>
+            <label>
+              <input type="checkbox" id="open-${day}" ${isOpen ? 'checked' : ''} onchange="toggleDay('${day}')"> Open
+            </label>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('hoursGrid').innerHTML = html;
+    }
+
+    function toggleDay(day) {
+      const isOpen = document.getElementById(`open-${day}`).checked;
+      document.getElementById(`start-${day}`).disabled = !isOpen;
+      document.getElementById(`end-${day}`).disabled = !isOpen;
+      if (isOpen && !document.getElementById(`start-${day}`).value) {
+        document.getElementById(`start-${day}`).value = '09:00';
+        document.getElementById(`end-${day}`).value = '17:00';
+      }
+    }
+
+    async function saveBusinessHours() {
+      const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+      const businessHours = {};
+
+      days.forEach(day => {
+        const isOpen = document.getElementById(`open-${day}`).checked;
+        businessHours[day] = isOpen ? {
+          start: document.getElementById(`start-${day}`).value,
+          end: document.getElementById(`end-${day}`).value
+        } : null;
+      });
+
+      const response = await fetch('/api/admin/business-hours', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(businessHours)
+      });
+
+      if (response.ok) {
+        alert('Business hours saved!');
+        await loadSettings();
+      }
+    }
+
+    // Branding
+    async function saveBranding() {
+      const data = {
+        businessName: document.getElementById('businessName').value,
+        primaryColor: document.getElementById('primaryColor').value
+      };
+
+      const response = await fetch('/api/admin/branding', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+
+      if (response.ok) {
+        alert('Branding saved!');
+        await loadSettings();
+      }
+    }
+  </script>
+</body>
+</html>
