@@ -17,9 +17,43 @@ import {
 } from './database.js';
 import { initTelegramBot, sendAppointmentRequest } from './telegram.js';
 import { initCalendar, getAvailableSlots } from './calendar.js';
+import { google } from 'googleapis';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+// Google OAuth setup
+let oauth2Client = null;
+
+function initGoogleOAuth() {
+  try {
+    const credentialsPath = join(__dirname, 'credentials.json');
+    if (!existsSync(credentialsPath)) {
+      console.warn('Google credentials.json not found. Admin SSO will not work.');
+      return null;
+    }
+
+    const credentials = JSON.parse(readFileSync(credentialsPath, 'utf8'));
+    const { client_secret, client_id, redirect_uris } = credentials.installed || credentials.web;
+
+    // Use web redirect URI or localhost for development
+    const redirectUri = redirect_uris[0] || `http://localhost:${process.env.PORT || 3000}/api/admin/oauth/callback`;
+
+    oauth2Client = new google.auth.OAuth2(
+      client_id,
+      client_secret,
+      redirectUri
+    );
+
+    console.log('Google OAuth client initialized');
+    return oauth2Client;
+  } catch (error) {
+    console.error('Error initializing Google OAuth:', error.message);
+    return null;
+  }
+}
+
+oauth2Client = initGoogleOAuth();
 
 // Load configuration
 let config = {};
@@ -57,14 +91,19 @@ function hashPassword(password) {
   return crypto.createHash('sha256').update(password).digest('hex');
 }
 
-function createSession(username) {
+function createSession(email, googleTokens = null) {
   const sessionId = uuidv4();
   sessions.set(sessionId, {
-    username,
+    email,
+    googleTokens,
     createdAt: Date.now(),
     expiresAt: Date.now() + 24 * 60 * 60 * 1000 // 24 hours
   });
   return sessionId;
+}
+
+function getSession(sessionId) {
+  return sessions.get(sessionId);
 }
 
 function validateSession(sessionId) {
@@ -89,6 +128,11 @@ function getSessionFromCookie(cookieHeader) {
 
 // Load or create admin settings
 let adminSettings = {
+  authorizedAdmins: process.env.ADMIN_EMAILS ? process.env.ADMIN_EMAILS.split(',') : [],
+  googleCalendar: {
+    configured: false,
+    calendarId: 'primary'
+  },
   branding: {
     businessName: config.business?.name || 'My Business',
     primaryColor: '#667eea',
@@ -296,7 +340,91 @@ const server = http.createServer(async (req, res) => {
 
     // Admin API endpoints
 
-    // Admin login
+    // Google OAuth: Initiate login
+    else if (url.pathname === "/api/admin/oauth/login" && req.method === "GET") {
+      if (!oauth2Client) {
+        sendJSON({ error: 'Google OAuth not configured. Please add credentials.json' }, 500);
+        return;
+      }
+
+      const authUrl = oauth2Client.generateAuthUrl({
+        access_type: 'offline',
+        scope: [
+          'https://www.googleapis.com/auth/userinfo.email',
+          'https://www.googleapis.com/auth/userinfo.profile',
+          'https://www.googleapis.com/auth/calendar'
+        ],
+        prompt: 'consent'
+      });
+
+      sendJSON({ authUrl });
+    }
+
+    // Google OAuth: Callback
+    else if (url.pathname === "/api/admin/oauth/callback" && req.method === "GET") {
+      if (!oauth2Client) {
+        sendJSON({ error: 'Google OAuth not configured' }, 500);
+        return;
+      }
+
+      try {
+        const code = url.searchParams.get('code');
+        if (!code) {
+          sendJSON({ error: 'No authorization code provided' }, 400);
+          return;
+        }
+
+        // Exchange code for tokens
+        const { tokens } = await oauth2Client.getToken(code);
+        oauth2Client.setCredentials(tokens);
+
+        // Get user info
+        const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
+        const { data: userInfo } = await oauth2.userinfo.get();
+
+        // Check if user is authorized
+        const isAuthorized = adminSettings.authorizedAdmins.length === 0 ||
+                            adminSettings.authorizedAdmins.includes(userInfo.email);
+
+        if (!isAuthorized) {
+          res.writeHead(302, {
+            'Location': '/admin.html?auth=unauthorized'
+          });
+          res.end();
+          return;
+        }
+
+        // Save tokens to admin settings for calendar access
+        adminSettings.googleCalendar.configured = true;
+        adminSettings.googleCalendar.tokens = tokens;
+        saveAdminSettings();
+
+        // Create session
+        const sessionId = createSession(userInfo.email, tokens);
+
+        // Redirect to admin dashboard
+        res.writeHead(302, {
+          'Location': '/admin.html?auth=success',
+          'Set-Cookie': `session=${sessionId}; HttpOnly; Max-Age=86400; Path=/; SameSite=Lax`
+        });
+        res.end();
+      } catch (error) {
+        console.error('OAuth callback error:', error);
+        res.writeHead(500, { 'Content-Type': 'text/html' });
+        res.end(`
+          <!DOCTYPE html>
+          <html>
+          <body>
+            <h1>Authentication Error</h1>
+            <p>${error.message}</p>
+            <a href="/admin">Try again</a>
+          </body>
+          </html>
+        `);
+      }
+    }
+
+    // Legacy password login (kept for backwards compatibility)
     else if (url.pathname === "/api/admin/login" && req.method === "POST") {
       try {
         const body = await parseBody();
@@ -344,7 +472,35 @@ const server = http.createServer(async (req, res) => {
         sendJSON({ error: 'Unauthorized' }, 401);
         return;
       }
-      sendJSON(adminSettings);
+      const session = getSession(sessionId);
+      sendJSON({
+        ...adminSettings,
+        currentUser: { email: session?.email }
+      });
+    }
+
+    // Update authorized admins
+    else if (url.pathname === "/api/admin/authorized-admins" && req.method === "PUT") {
+      const sessionId = getSessionFromCookie(req.headers.cookie);
+      if (!validateSession(sessionId)) {
+        sendJSON({ error: 'Unauthorized' }, 401);
+        return;
+      }
+
+      try {
+        const body = await parseBody();
+        if (!Array.isArray(body.emails)) {
+          sendJSON({ error: 'emails must be an array' }, 400);
+          return;
+        }
+
+        adminSettings.authorizedAdmins = body.emails.map(e => e.trim().toLowerCase());
+        saveAdminSettings();
+        sendJSON({ success: true, authorizedAdmins: adminSettings.authorizedAdmins });
+      } catch (error) {
+        console.error('Error updating authorized admins:', error);
+        sendJSON({ error: 'Internal server error' }, 500);
+      }
     }
 
     // Update branding

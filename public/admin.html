@@ -418,17 +418,19 @@
   <div class="login-container" id="loginScreen">
     <div class="login-box">
       <h1>🔐 Admin Login</h1>
-      <p>Enter your password to access the admin dashboard</p>
+      <p>Sign in with your Google account to access the admin dashboard</p>
       <div id="loginAlert" class="alert"></div>
-      <form id="loginForm">
-        <div class="form-group">
-          <label for="password">Password</label>
-          <input type="password" id="password" required placeholder="Enter admin password">
-        </div>
-        <button type="submit" class="btn btn-primary">Login</button>
-      </form>
-      <p style="margin-top: 20px; font-size: 12px; color: #999;">
-        Default password: admin123 (Change this in production!)
+      <button class="btn btn-primary" onclick="loginWithGoogle()" style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+        <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+          <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
+          <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/>
+          <path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.96H.957C.348 6.173 0 7.548 0 9s.348 2.827.957 4.04l3.007-2.333z"/>
+          <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
+        </svg>
+        Sign in with Google
+      </button>
+      <p style="margin-top: 20px; font-size: 12px; color: #999; text-align: center;">
+        Your Google account must be authorized by the system administrator
       </p>
     </div>
   </div>
@@ -438,7 +440,7 @@
     <div class="topbar">
       <h1>📊 Admin Dashboard</h1>
       <div class="user-menu">
-        <span>👤 Admin</span>
+        <span id="userEmail">👤 Loading...</span>
         <button class="btn btn-secondary" onclick="logout()">Logout</button>
       </div>
     </div>
@@ -590,21 +592,42 @@
         <!-- Settings Section -->
         <div class="section" id="settings">
           <h2>Settings</h2>
+
           <div class="card">
-            <h3>Telegram Integration</h3>
+            <h3>🗓️ Google Calendar Integration</h3>
+            <p style="color: #666; margin-bottom: 15px;">
+              Your Google Calendar is connected via Google OAuth. Approved appointments will be automatically added to your calendar.
+            </p>
+            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+              <span id="calendarStatus" style="font-weight: 600;">Status: <span id="calendarStatusText">Checking...</span></span>
+            </div>
+            <div style="margin-bottom: 15px;">
+              <strong>Logged in as:</strong> <span id="currentUserEmail">Loading...</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>👥 Authorized Administrators</h3>
+            <p style="color: #666; margin-bottom: 15px;">
+              Only these email addresses can access the admin dashboard via Google Sign-In.
+            </p>
+            <div id="authorizedAdminsList" style="margin-bottom: 15px;">
+              <!-- Will be populated dynamically -->
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+              <input type="email" id="newAdminEmail" placeholder="admin@example.com" style="flex: 1;">
+              <button class="btn btn-primary" onclick="addAuthorizedAdmin()">Add Admin</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <h3>📱 Telegram Integration</h3>
             <p style="color: #666; margin-bottom: 15px;">
               Telegram settings are configured in config.json
             </p>
             <div class="alert success">
               System is running properly
             </div>
-          </div>
-
-          <div class="card">
-            <h3>Password</h3>
-            <p style="color: #666; margin-bottom: 15px;">
-              To change the admin password, set the <code>ADMIN_PASSWORD_HASH</code> environment variable with the SHA-256 hash of your desired password.
-            </p>
           </div>
         </div>
       </div>
@@ -649,30 +672,33 @@
     let settings = null;
     let editingServiceId = null;
 
-    // Login
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const password = document.getElementById('password').value;
+    // Check if we're returning from OAuth callback
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('auth') === 'success') {
+      // Remove the query param and load dashboard
+      window.history.replaceState({}, document.title, window.location.pathname);
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('dashboard').classList.add('active');
+      loadDashboard();
+    } else if (urlParams.get('auth') === 'unauthorized') {
+      showLoginAlert('Your email is not authorized. Contact the system administrator.', 'error');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
 
+    // Google OAuth Login
+    async function loginWithGoogle() {
       try {
-        const response = await fetch('/api/admin/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password })
-        });
-
-        if (response.ok) {
-          document.getElementById('loginScreen').style.display = 'none';
-          document.getElementById('dashboard').classList.add('active');
-          loadDashboard();
+        const response = await fetch('/api/admin/oauth/login');
+        const data = await response.json();
+        if (data.authUrl) {
+          window.location.href = data.authUrl;
         } else {
-          const data = await response.json();
-          showLoginAlert(data.error || 'Invalid password', 'error');
+          showLoginAlert('Failed to initiate Google login', 'error');
         }
       } catch (error) {
         showLoginAlert('Network error', 'error');
       }
-    });
+    }
 
     function showLoginAlert(message, type) {
       const alert = document.getElementById('loginAlert');
@@ -714,6 +740,88 @@
       settings = await response.json();
       document.getElementById('businessName').value = settings.branding.businessName;
       document.getElementById('primaryColor').value = settings.branding.primaryColor;
+
+      // Update user email displays
+      if (settings.currentUser) {
+        document.getElementById('userEmail').textContent = `👤 ${settings.currentUser}`;
+        document.getElementById('currentUserEmail').textContent = settings.currentUser;
+      }
+
+      // Update calendar status
+      if (settings.googleCalendar) {
+        const statusText = settings.googleCalendar.configured ? '✅ Connected' : '❌ Not Connected';
+        const statusColor = settings.googleCalendar.configured ? '#27ae60' : '#e74c3c';
+        document.getElementById('calendarStatusText').textContent = statusText;
+        document.getElementById('calendarStatusText').style.color = statusColor;
+      }
+
+      // Load authorized admins
+      loadAuthorizedAdmins();
+    }
+
+    function loadAuthorizedAdmins() {
+      const adminsList = document.getElementById('authorizedAdminsList');
+      if (!settings.authorizedAdmins || settings.authorizedAdmins.length === 0) {
+        adminsList.innerHTML = '<p style="color: #999; font-style: italic;">No restrictions - all Google users can access (not recommended for production)</p>';
+      } else {
+        const html = settings.authorizedAdmins.map(email => `
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #f5f7fa; border-radius: 8px; margin-bottom: 8px;">
+            <span>${email}</span>
+            <button class="btn btn-danger" onclick="removeAuthorizedAdmin('${email}')" style="padding: 6px 12px; font-size: 12px;">Remove</button>
+          </div>
+        `).join('');
+        adminsList.innerHTML = html;
+      }
+    }
+
+    async function addAuthorizedAdmin() {
+      const email = document.getElementById('newAdminEmail').value.trim().toLowerCase();
+      if (!email) {
+        alert('Please enter an email address');
+        return;
+      }
+
+      if (!settings.authorizedAdmins) {
+        settings.authorizedAdmins = [];
+      }
+
+      if (settings.authorizedAdmins.includes(email)) {
+        alert('This email is already authorized');
+        return;
+      }
+
+      const updatedEmails = [...settings.authorizedAdmins, email];
+
+      const response = await fetch('/api/admin/authorized-admins', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emails: updatedEmails })
+      });
+
+      if (response.ok) {
+        document.getElementById('newAdminEmail').value = '';
+        await loadSettings();
+      } else {
+        alert('Failed to add admin');
+      }
+    }
+
+    async function removeAuthorizedAdmin(email) {
+      if (!confirm(`Remove ${email} from authorized admins?`)) return;
+
+      const updatedEmails = settings.authorizedAdmins.filter(e => e !== email);
+
+      const response = await fetch('/api/admin/authorized-admins', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emails: updatedEmails })
+      });
+
+      if (response.ok) {
+        await loadSettings();
+      } else {
+        alert('Failed to remove admin');
+      }
     }
 
     async function loadAppointments() {
