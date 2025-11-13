@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" dir="ltr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -16,6 +16,11 @@
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       min-height: 100vh;
       padding: 20px;
+      transition: direction 0.3s;
+    }
+
+    body[dir="rtl"] {
+      font-family: 'Arial', 'Segoe UI', sans-serif;
     }
 
     .container {
@@ -25,6 +30,7 @@
       border-radius: 20px;
       box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
       overflow: hidden;
+      position: relative;
     }
 
     .header {
@@ -32,6 +38,34 @@
       color: white;
       padding: 30px 40px;
       text-align: center;
+      position: relative;
+    }
+
+    .lang-switcher {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(255, 255, 255, 0.2);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 20px;
+      padding: 8px 16px;
+      cursor: pointer;
+      transition: all 0.3s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    [dir="rtl"] .lang-switcher {
+      right: auto;
+      left: 20px;
+    }
+
+    .lang-switcher:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: scale(1.05);
     }
 
     .header h1 {
@@ -217,6 +251,10 @@
       margin-top: 30px;
     }
 
+    [dir="rtl"] .button-group {
+      flex-direction: row-reverse;
+    }
+
     .btn {
       flex: 1;
       padding: 15px;
@@ -318,11 +356,15 @@
     }
   </style>
 </head>
-<body>
+<body dir="ltr">
   <div class="container">
     <div class="header">
-      <h1>📅 Book an Appointment</h1>
-      <p>Select a date and time that works for you</p>
+      <div class="lang-switcher" onclick="toggleLanguage()">
+        <span id="langIcon">🌐</span>
+        <span id="langText">עברית</span>
+      </div>
+      <h1 id="headerTitle">📅 Book an Appointment</h1>
+      <p id="headerSubtitle">Select a date and time that works for you</p>
     </div>
 
     <div class="content">
@@ -337,35 +379,35 @@
       <!-- Step 1: Service Selection -->
       <div class="step active" id="step1">
         <div class="form-group">
-          <label for="service_type">Select Service <span class="required">*</span></label>
+          <label for="service_type"><span id="labelService">Select Service</span> <span class="required">*</span></label>
           <select id="service_type" name="service_type" required>
-            <option value="">Choose a service...</option>
-            <option value="Therapy Session">💬 Therapy Session (60 min)</option>
-            <option value="Consultation">🗣️ Consultation (30 min)</option>
-            <option value="Haircut">✂️ Haircut (45 min)</option>
-            <option value="Hair Styling">💇 Hair Styling (60 min)</option>
-            <option value="Facial Treatment">✨ Facial Treatment (60 min)</option>
-            <option value="Massage">💆 Massage (90 min)</option>
-            <option value="Manicure">💅 Manicure (45 min)</option>
-            <option value="Pedicure">🦶 Pedicure (60 min)</option>
-            <option value="Makeup">💄 Makeup (45 min)</option>
-            <option value="Other">📋 Other (60 min)</option>
+            <option value="" data-lang-key="chooseService">Choose a service...</option>
+            <option value="Therapy Session">💬 <span data-lang-key="therapySession">Therapy Session</span> (60 min)</option>
+            <option value="Consultation">🗣️ <span data-lang-key="consultation">Consultation</span> (30 min)</option>
+            <option value="Haircut">✂️ <span data-lang-key="haircut">Haircut</span> (45 min)</option>
+            <option value="Hair Styling">💇 <span data-lang-key="hairStyling">Hair Styling</span> (60 min)</option>
+            <option value="Facial Treatment">✨ <span data-lang-key="facialTreatment">Facial Treatment</span> (60 min)</option>
+            <option value="Massage">💆 <span data-lang-key="massage">Massage</span> (90 min)</option>
+            <option value="Manicure">💅 <span data-lang-key="manicure">Manicure</span> (45 min)</option>
+            <option value="Pedicure">🦶 <span data-lang-key="pedicure">Pedicure</span> (60 min)</option>
+            <option value="Makeup">💄 <span data-lang-key="makeup">Makeup</span> (45 min)</option>
+            <option value="Other">📋 <span data-lang-key="other">Other</span> (60 min)</option>
           </select>
         </div>
 
         <div class="form-group">
-          <label for="duration">Duration (minutes) <span class="required">*</span></label>
+          <label for="duration"><span id="labelDuration">Duration (minutes)</span> <span class="required">*</span></label>
           <select id="duration" name="duration" required>
-            <option value="30">30 minutes</option>
-            <option value="45">45 minutes</option>
-            <option value="60" selected>60 minutes</option>
-            <option value="90">90 minutes</option>
-            <option value="120">120 minutes</option>
+            <option value="30">30 <span data-lang-key="minutes">minutes</span></option>
+            <option value="45">45 <span data-lang-key="minutes">minutes</span></option>
+            <option value="60" selected>60 <span data-lang-key="minutes">minutes</span></option>
+            <option value="90">90 <span data-lang-key="minutes">minutes</span></option>
+            <option value="120">120 <span data-lang-key="minutes">minutes</span></option>
           </select>
         </div>
 
         <div class="button-group">
-          <button type="button" class="btn btn-primary" onclick="goToStep(2)">Next: Select Date & Time</button>
+          <button type="button" class="btn btn-primary" onclick="goToStep(2)" id="btnStep1Next">Next: Select Date & Time</button>
         </div>
       </div>
 
@@ -373,15 +415,15 @@
       <div class="step" id="step2">
         <div class="date-picker-container">
           <div class="form-group">
-            <label for="requested_date">Select Date <span class="required">*</span></label>
+            <label for="requested_date"><span id="labelDate">Select Date</span> <span class="required">*</span></label>
             <input type="date" id="requested_date" name="requested_date" required onchange="loadAvailableSlots()">
-            <p class="calendar-info">Select a date to see available time slots</p>
+            <p class="calendar-info" id="calendarInfo">Select a date to see available time slots</p>
           </div>
         </div>
 
         <div class="slots-container" id="slotsContainer" style="display: none;">
           <div class="slots-header">
-            <h3>Available Times</h3>
+            <h3 id="availableTimesHeader">Available Times</h3>
             <p class="slots-date" id="selectedDate"></p>
           </div>
           <div id="slotsContent">
@@ -390,7 +432,7 @@
         </div>
 
         <div class="button-group">
-          <button type="button" class="btn btn-secondary" onclick="goToStep(1)">Back</button>
+          <button type="button" class="btn btn-secondary" onclick="goToStep(1)" id="btnStep2Back">Back</button>
           <button type="button" class="btn btn-primary" id="btnNext2" onclick="goToStep(3)" disabled>Next: Your Details</button>
         </div>
       </div>
@@ -398,56 +440,253 @@
       <!-- Step 3: Personal Information -->
       <div class="step" id="step3">
         <div class="summary">
-          <h3>Appointment Summary</h3>
+          <h3 id="summaryTitle">Appointment Summary</h3>
           <div class="summary-item">
-            <span class="summary-label">Service:</span>
+            <span class="summary-label" id="summaryLabelService">Service:</span>
             <span class="summary-value" id="summaryService">-</span>
           </div>
           <div class="summary-item">
-            <span class="summary-label">Date:</span>
+            <span class="summary-label" id="summaryLabelDate">Date:</span>
             <span class="summary-value" id="summaryDate">-</span>
           </div>
           <div class="summary-item">
-            <span class="summary-label">Time:</span>
+            <span class="summary-label" id="summaryLabelTime">Time:</span>
             <span class="summary-value" id="summaryTime">-</span>
           </div>
           <div class="summary-item">
-            <span class="summary-label">Duration:</span>
+            <span class="summary-label" id="summaryLabelDuration">Duration:</span>
             <span class="summary-value" id="summaryDuration">-</span>
           </div>
         </div>
 
         <div class="form-group">
-          <label for="client_name">Full Name <span class="required">*</span></label>
-          <input type="text" id="client_name" name="client_name" required placeholder="John Doe">
+          <label for="client_name"><span id="labelName">Full Name</span> <span class="required">*</span></label>
+          <input type="text" id="client_name" name="client_name" required data-placeholder-key="namePlaceholder">
         </div>
 
         <div class="form-group">
-          <label for="client_email">Email <span class="required">*</span></label>
-          <input type="email" id="client_email" name="client_email" required placeholder="john@example.com">
+          <label for="client_email"><span id="labelEmail">Email</span> <span class="required">*</span></label>
+          <input type="email" id="client_email" name="client_email" required data-placeholder-key="emailPlaceholder">
         </div>
 
         <div class="form-group">
-          <label for="client_phone">Phone Number</label>
-          <input type="tel" id="client_phone" name="client_phone" placeholder="+1 (555) 123-4567">
+          <label for="client_phone" id="labelPhone">Phone Number</label>
+          <input type="tel" id="client_phone" name="client_phone" data-placeholder-key="phonePlaceholder">
         </div>
 
         <div class="form-group">
-          <label for="notes">Additional Notes</label>
-          <textarea id="notes" name="notes" placeholder="Any special requests or information..."></textarea>
+          <label for="notes" id="labelNotes">Additional Notes</label>
+          <textarea id="notes" name="notes" data-placeholder-key="notesPlaceholder"></textarea>
         </div>
 
         <div class="button-group">
-          <button type="button" class="btn btn-secondary" onclick="goToStep(2)">Back</button>
-          <button type="button" class="btn btn-primary" onclick="submitAppointment()">Book Appointment</button>
+          <button type="button" class="btn btn-secondary" onclick="goToStep(2)" id="btnStep3Back">Back</button>
+          <button type="button" class="btn btn-primary" onclick="submitAppointment()" id="btnSubmit">Book Appointment</button>
         </div>
       </div>
     </div>
   </div>
 
   <script>
+    // Translations
+    const translations = {
+      en: {
+        // Header
+        headerTitle: '📅 Book an Appointment',
+        headerSubtitle: 'Select a date and time that works for you',
+        langText: 'עברית',
+
+        // Step 1
+        labelService: 'Select Service',
+        labelDuration: 'Duration (minutes)',
+        chooseService: 'Choose a service...',
+        therapySession: 'Therapy Session',
+        consultation: 'Consultation',
+        haircut: 'Haircut',
+        hairStyling: 'Hair Styling',
+        facialTreatment: 'Facial Treatment',
+        massage: 'Massage',
+        manicure: 'Manicure',
+        pedicure: 'Pedicure',
+        makeup: 'Makeup',
+        other: 'Other',
+        minutes: 'minutes',
+        btnStep1Next: 'Next: Select Date & Time',
+
+        // Step 2
+        labelDate: 'Select Date',
+        calendarInfo: 'Select a date to see available time slots',
+        availableTimesHeader: 'Available Times',
+        btnStep2Back: 'Back',
+        btnNext2: 'Next: Your Details',
+        loadingSlots: 'Loading available slots...',
+        noSlotsAvailable: 'No available slots',
+        noSlotsTryDifferent: 'Please try selecting a different date',
+        errorLoadingSlots: 'Error loading slots',
+
+        // Step 3
+        summaryTitle: 'Appointment Summary',
+        summaryLabelService: 'Service:',
+        summaryLabelDate: 'Date:',
+        summaryLabelTime: 'Time:',
+        summaryLabelDuration: 'Duration:',
+        labelName: 'Full Name',
+        labelEmail: 'Email',
+        labelPhone: 'Phone Number',
+        labelNotes: 'Additional Notes',
+        namePlaceholder: 'John Doe',
+        emailPlaceholder: 'john@example.com',
+        phonePlaceholder: '+1 (555) 123-4567',
+        notesPlaceholder: 'Any special requests or information...',
+        btnStep3Back: 'Back',
+        btnSubmit: 'Book Appointment',
+
+        // Messages
+        selectService: 'Please select a service',
+        selectTimeSlot: 'Please select a time slot',
+        fillRequired: 'Please fill in all required fields',
+        networkError: '❌ Network error. Please try again.',
+      },
+      he: {
+        // Header
+        headerTitle: '📅 קביעת תור',
+        headerSubtitle: 'בחר תאריך ושעה המתאימים לך',
+        langText: 'English',
+
+        // Step 1
+        labelService: 'בחר שירות',
+        labelDuration: 'משך (דקות)',
+        chooseService: 'בחר שירות...',
+        therapySession: 'פגישת טיפול',
+        consultation: 'ייעוץ',
+        haircut: 'תספורת',
+        hairStyling: 'עיצוב שיער',
+        facialTreatment: 'טיפול פנים',
+        massage: 'עיסוי',
+        manicure: 'מניקור',
+        pedicure: 'פדיקור',
+        makeup: 'איפור',
+        other: 'אחר',
+        minutes: 'דקות',
+        btnStep1Next: 'הבא: בחירת תאריך ושעה',
+
+        // Step 2
+        labelDate: 'בחר תאריך',
+        calendarInfo: 'בחר תאריך כדי לראות זמנים פנויים',
+        availableTimesHeader: 'שעות פנויות',
+        btnStep2Back: 'חזור',
+        btnNext2: 'הבא: הפרטים שלך',
+        loadingSlots: 'טוען זמנים פנויים...',
+        noSlotsAvailable: 'אין זמנים פנויים',
+        noSlotsTryDifferent: 'נסה לבחור תאריך אחר',
+        errorLoadingSlots: 'שגיאה בטעינת הזמנים',
+
+        // Step 3
+        summaryTitle: 'סיכום התור',
+        summaryLabelService: 'שירות:',
+        summaryLabelDate: 'תאריך:',
+        summaryLabelTime: 'שעה:',
+        summaryLabelDuration: 'משך:',
+        labelName: 'שם מלא',
+        labelEmail: 'אימייל',
+        labelPhone: 'מספר טלפון',
+        labelNotes: 'הערות נוספות',
+        namePlaceholder: 'ישראל ישראלי',
+        emailPlaceholder: 'israel@example.com',
+        phonePlaceholder: '050-1234567',
+        notesPlaceholder: 'בקשות מיוחדות או מידע נוסף...',
+        btnStep3Back: 'חזור',
+        btnSubmit: 'אשר תור',
+
+        // Messages
+        selectService: 'אנא בחר שירות',
+        selectTimeSlot: 'אנא בחר שעה',
+        fillRequired: 'אנא מלא את כל השדות הנדרשים',
+        networkError: '❌ שגיאת רשת. נסה שוב.',
+      }
+    };
+
+    let currentLang = localStorage.getItem('preferredLanguage') || 'en';
     let currentStep = 1;
     let selectedSlot = null;
+
+    // Initialize language on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      applyLanguage(currentLang);
+    });
+
+    function toggleLanguage() {
+      currentLang = currentLang === 'en' ? 'he' : 'en';
+      localStorage.setItem('preferredLanguage', currentLang);
+      applyLanguage(currentLang);
+    }
+
+    function applyLanguage(lang) {
+      const t = translations[lang];
+
+      // Set direction
+      document.documentElement.dir = lang === 'he' ? 'rtl' : 'ltr';
+      document.documentElement.lang = lang === 'he' ? 'he' : 'en';
+      document.body.dir = lang === 'he' ? 'rtl' : 'ltr';
+
+      // Update all text elements
+      Object.keys(t).forEach(key => {
+        const element = document.getElementById(key);
+        if (element) {
+          if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+            element.placeholder = t[key];
+          } else {
+            element.textContent = t[key];
+          }
+        }
+      });
+
+      // Update placeholders
+      document.querySelectorAll('[data-placeholder-key]').forEach(el => {
+        const key = el.getAttribute('data-placeholder-key');
+        if (t[key]) {
+          el.placeholder = t[key];
+        }
+      });
+
+      // Update select options text (keeping emojis and duration)
+      updateSelectOptions();
+    }
+
+    function updateSelectOptions() {
+      const t = translations[currentLang];
+      const serviceSelect = document.getElementById('service_type');
+
+      // Update service options
+      const services = [
+        { value: '', emoji: '', key: 'chooseService', time: '' },
+        { value: 'Therapy Session', emoji: '💬', key: 'therapySession', time: '(60 min)' },
+        { value: 'Consultation', emoji: '🗣️', key: 'consultation', time: '(30 min)' },
+        { value: 'Haircut', emoji: '✂️', key: 'haircut', time: '(45 min)' },
+        { value: 'Hair Styling', emoji: '💇', key: 'hairStyling', time: '(60 min)' },
+        { value: 'Facial Treatment', emoji: '✨', key: 'facialTreatment', time: '(60 min)' },
+        { value: 'Massage', emoji: '💆', key: 'massage', time: '(90 min)' },
+        { value: 'Manicure', emoji: '💅', key: 'manicure', time: '(45 min)' },
+        { value: 'Pedicure', emoji: '🦶', key: 'pedicure', time: '(60 min)' },
+        { value: 'Makeup', emoji: '💄', key: 'makeup', time: '(45 min)' },
+        { value: 'Other', emoji: '📋', key: 'other', time: '(60 min)' }
+      ];
+
+      const currentValue = serviceSelect.value;
+      serviceSelect.innerHTML = services.map(s =>
+        `<option value="${s.value}">${s.emoji} ${t[s.key]} ${s.time}</option>`
+      ).join('');
+      serviceSelect.value = currentValue;
+
+      // Update duration options
+      const durationSelect = document.getElementById('duration');
+      const currentDuration = durationSelect.value;
+      const durations = [30, 45, 60, 90, 120];
+      durationSelect.innerHTML = durations.map(d =>
+        `<option value="${d}">${d} ${t.minutes}</option>`
+      ).join('');
+      durationSelect.value = currentDuration;
+    }
 
     // Set minimum date to today
     const dateInput = document.getElementById('requested_date');
@@ -474,18 +713,20 @@
     });
 
     function goToStep(step) {
+      const t = translations[currentLang];
+
       // Validation
       if (step === 2 && currentStep === 1) {
         const service = document.getElementById('service_type').value;
         if (!service) {
-          showMessage('Please select a service', 'error');
+          showMessage(t.selectService, 'error');
           return;
         }
       }
 
       if (step === 3 && currentStep === 2) {
         if (!selectedSlot) {
-          showMessage('Please select a time slot', 'error');
+          showMessage(t.selectTimeSlot, 'error');
           return;
         }
         updateSummary();
@@ -504,6 +745,7 @@
     }
 
     async function loadAvailableSlots() {
+      const t = translations[currentLang];
       const date = document.getElementById('requested_date').value;
       const duration = document.getElementById('duration').value;
 
@@ -513,7 +755,7 @@
       const content = document.getElementById('slotsContent');
 
       container.style.display = 'block';
-      content.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading available slots...</p></div>';
+      content.innerHTML = `<div class="loading"><div class="spinner"></div><p>${t.loadingSlots}</p></div>`;
 
       try {
         const response = await fetch(`/api/available-slots?date=${date}&duration=${duration}`);
@@ -524,7 +766,9 @@
         }
 
         // Update date display
-        document.getElementById('selectedDate').textContent = new Date(date).toLocaleDateString('en-US', {
+        const dateObj = new Date(date + 'T00:00:00');
+        const dateFormat = currentLang === 'he' ? 'he-IL' : 'en-US';
+        document.getElementById('selectedDate').textContent = dateObj.toLocaleDateString(dateFormat, {
           weekday: 'long',
           year: 'numeric',
           month: 'long',
@@ -535,8 +779,8 @@
           content.innerHTML = `
             <div class="no-slots">
               <div class="no-slots-icon">📅</div>
-              <h3>No available slots</h3>
-              <p>Please try selecting a different date</p>
+              <h3>${t.noSlotsAvailable}</h3>
+              <p>${t.noSlotsTryDifferent}</p>
             </div>
           `;
         } else {
@@ -555,7 +799,7 @@
         content.innerHTML = `
           <div class="no-slots">
             <div class="no-slots-icon">⚠️</div>
-            <h3>Error loading slots</h3>
+            <h3>${t.errorLoadingSlots}</h3>
             <p>${error.message}</p>
           </div>
         `;
@@ -579,23 +823,27 @@
       const date = document.getElementById('requested_date').value;
       const duration = document.getElementById('duration').value;
 
+      const dateObj = new Date(date + 'T00:00:00');
+      const dateFormat = currentLang === 'he' ? 'he-IL' : 'en-US';
+
       document.getElementById('summaryService').textContent = service;
-      document.getElementById('summaryDate').textContent = new Date(date).toLocaleDateString('en-US', {
+      document.getElementById('summaryDate').textContent = dateObj.toLocaleDateString(dateFormat, {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
         day: 'numeric'
       });
       document.getElementById('summaryTime').textContent = selectedSlot.display;
-      document.getElementById('summaryDuration').textContent = `${duration} minutes`;
+      document.getElementById('summaryDuration').textContent = `${duration} ${translations[currentLang].minutes}`;
     }
 
     async function submitAppointment() {
+      const t = translations[currentLang];
       const name = document.getElementById('client_name').value;
       const email = document.getElementById('client_email').value;
 
       if (!name || !email) {
-        showMessage('Please fill in all required fields', 'error');
+        showMessage(t.fillRequired, 'error');
         return;
       }
 
@@ -621,15 +869,12 @@
 
         if (response.ok) {
           showMessage('✅ ' + result.message, 'success');
-          // Reset form after 3 seconds
-          setTimeout(() => {
-            location.reload();
-          }, 3000);
+          setTimeout(() => location.reload(), 3000);
         } else {
           showMessage('❌ ' + (result.error || 'Something went wrong'), 'error');
         }
       } catch (error) {
-        showMessage('❌ Network error. Please try again.', 'error');
+        showMessage(t.networkError, 'error');
       }
     }
 
